@@ -25,18 +25,26 @@ pub type PlatformThreadHandle = RawPthread;
 #[cfg(windows)]
 pub type PlatformThreadHandle = RawHandle;
 
-/// A noop thread join handle for wasm
-/// The usize field is a dummy field to make this type non-zero sized so as not to confuse FFI
-#[cfg(all(target_arch = "wasm32", not(feature = "gecko")))]
+/// A no-op thread handle for platforms without raw thread handle integration.
+#[cfg(any(
+    all(target_arch = "wasm32", not(feature = "gecko")),
+    all(not(unix), not(windows), not(target_arch = "wasm32"))
+))]
 pub struct DummyThreadHandle;
-#[cfg(all(target_arch = "wasm32", not(feature = "gecko")))]
+#[cfg(any(
+    all(target_arch = "wasm32", not(feature = "gecko")),
+    all(not(unix), not(windows), not(target_arch = "wasm32"))
+))]
 impl DummyThreadHandle {
-    /// A noop thread join method for wasm
+    /// Perform a no-op join for a dummy platform thread handle.
     pub fn join(&self) {
         // Do nothing
     }
 }
-#[cfg(all(target_arch = "wasm32", not(feature = "gecko")))]
+#[cfg(any(
+    all(target_arch = "wasm32", not(feature = "gecko")),
+    all(not(unix), not(windows), not(target_arch = "wasm32"))
+))]
 /// Platform-specific handle to a thread.
 pub type PlatformThreadHandle = DummyThreadHandle;
 
@@ -144,6 +152,11 @@ impl StyleThreadPool {
             #[cfg(windows)]
             let handle = join_handle.as_raw_handle();
             #[cfg(all(target_arch = "wasm32", not(feature = "gecko")))]
+            let handle = {
+                let _ = join_handle;
+                DummyThreadHandle
+            };
+            #[cfg(all(not(unix), not(windows), not(target_arch = "wasm32")))]
             let handle = {
                 let _ = join_handle;
                 DummyThreadHandle
